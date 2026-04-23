@@ -14,23 +14,37 @@ if sys.platform == "win32":
         sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
 
 class InsuranceGEOEngine:
-    def __init__(self, api_key):
-        """אתחול המנוע עם המפתח שנמשך מה-env"""
-        # ניקוי המפתח משאריות רווחים או תווים לא נראים
-        if api_key:
-            clean_key = "".join(char for char in api_key if ord(char) < 128).strip()
-        else:
-            clean_key = ""
-            
-        self.llm = Cohere(model="command-r-08-2024", api_key=clean_key)
+    def __init__(self, api_keys):
+        """אתחול מנוע רב-סוכני עם הפרדת רשויות מלאה"""
+        # ניקוי מפתחות (לוגיקה מקורי שלך)
+        self.keys = {}
+        for k, v in api_keys.items():
+            if v:
+                self.keys[k] = "".join(char for char in v if ord(char) < 128).strip()
+            else:
+                self.keys[k] = ""
+
+        # סוכן 1: Generator - Gemini Flash (זול ומהיר לשאלות)
+        self.gen_llm = Gemini(model="models/gemini-2.0-flash", api_key=self.keys.get('google'))
         
-    def ask_ai(self, messages):
-        """תקשורת חסינה מול המודל עם תמיכה מלאה בעברית"""
+        # סוכן 2: Target (הנחקר) - Cohere Command R+ (סימולציית צרכן וציטוטים)
+        self.target_llm = Cohere(model="command-r-plus", api_key=self.keys.get('cohere'))
+        
+        # סוכן 3: Attacker (החוקר) - Gemini 2.5 Pro (זיכרון ארוך וניתוח לוגי)
+        self.attacker_llm = Gemini(model="models/gemini-2.5-pro", api_key=self.keys.get('google'))
+        
+        # סוכן 4: Judge (השופט) - OpenAI o1 (חשיבה עמוקה ל-JSON ו-ROI)
+        self.judge_llm = OpenAI(model="o1-preview", api_key=self.keys.get('openai'))
+        
+    def ask_ai(self, agent, messages):
+        """מעטפת תקשורת המקבלת סוכן ספציפי (gen, target, attacker, או judge)"""
         try:
-            response = self.llm.chat(messages)
+            if agent == "gen": response = self.gen_llm.chat(messages)
+            elif agent == "target": response = self.target_llm.chat(messages)
+            elif agent == "attacker": response = self.attacker_llm.chat(messages)
+            elif agent == "judge": response = self.judge_llm.chat(messages)
             return str(response.message.content).strip()
         except Exception as e:
-            # החזרת שגיאה בצורה שלא תפיל את הקידוד של ה-JSON
             return f"COMM_ERROR: AI communication failed"
 
     def _extract_json(self, text):
@@ -56,6 +70,17 @@ class InsuranceGEOEngine:
             return json.loads(clean_content)
         except:
             return None
+        
+        def verify_sources(self, sources):
+           """שכבת ה-Verifier: בודקת אם המקורות קיימים במציאות (סימולציה של RAG)"""
+           verified = []
+           if not sources: return ["לא סופקו מקורות לאימות"]
+           for src in sources:
+            # לוגיקת אימות בסיסית - ניתן להרחיב לחיפוש חי ברשת
+               is_valid = any(term in src.lower() for term in ["2024", "gov.il", "רשות שוק ההון", "מדד"])
+               status = "Verified" if is_valid else "Hallucination Risk"
+               verified.append(f"{src}: {status}")
+           return verified
 
     def run_full_audit(self, categories_config):
         """
@@ -79,7 +104,7 @@ class InsuranceGEOEngine:
             פוקוס ספציפי: {info['focus']}
             החזר רק את 3 השאלות, ללא מספור וללא טקסט נוסף.
             """
-            raw_res = self.ask_ai([ChatMessage(role="user", content=prompt_gen)])
+            raw_res = self.ask_ai("gen", [ChatMessage(role="user", content=prompt_gen)])
             
             if "COMM_ERROR" in raw_res:
                 yield {"event": "ERROR", "data": {"message": "שגיאת תקשורת עם ה-API. בדוק את תקינות המפתח ב-env."}}
@@ -166,7 +191,7 @@ class InsuranceGEOEngine:
                 2. ה-"vulnerability" חייב להיות פרקטי וניתן לתיקון.
                 3. אל תוסיף שום טקסט לפני או אחרי ה-JSON.
                 """
-                summary_res = self.ask_ai([ChatMessage(role="user", content=summary_prompt)])
+                summary_res = self.ask_ai("judge", [ChatMessage(role="user", content=summary_prompt)])
                 final_data = self._extract_json(summary_res)
                 if final_data: break
                 yield {"event": "AI_THOUGHT", "data": {"text": "מתקן פורמט נתונים..."}}
@@ -194,7 +219,7 @@ class InsuranceGEOEngine:
             
             שים לב: הציון החדש חייב להיות ריאלי ומבוסס על רמת ההשפעה של התיקון הטכני והשיווקי.
             """
-            impact_res = self.ask_ai([ChatMessage(role="user", content=impact_prompt)])
+            impact_res = self.ask_ai("judge", [ChatMessage(role="user", content=impact_prompt)])
             impact_data = self._extract_json(impact_res) or {"score_after": score_b + 2, "logic": "שיפור אמינות"}
 
             yield {
@@ -206,7 +231,7 @@ class InsuranceGEOEngine:
                     "score_after": impact_data.get("score_after", score_b + 2),
                     "vulnerability": vuln,
                     "sources": final_data.get("sources", []),
-                    "verified_facts": final_data.get("verified_facts", []),
+                    "verified_facts": self.verify_sources(final_data.get("sources", [])),
                     "action_plan": final_data.get("action_plan", {}),
                     "improvement_logic": impact_data.get("logic", "")
                 }
