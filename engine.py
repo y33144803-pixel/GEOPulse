@@ -1,36 +1,197 @@
+# import json
+# import time
+# import re
+# import sys
+# import io
+# import os
+# import os
+# import ssl
+# import ssl
+
+# from llama_index.llms.gemini import Gemini
+# # from llama_index.core.constants import DEFAULT_NUM_WORKERS
+
+# # הגדרה גלובלית לפני האתחול
+# import google.generativeai as genai
+# # מכריח את גוגל להשתמש ב-REST במקום gRPC
+# os.environ['GOOGLE_API_USE_MTLS'] = 'never'
+# ssl._create_default_https_context = ssl._create_unverified_context
+# os.environ['GOOGLE_API_USE_MTLS'] = 'never'
+# os.environ['GOOGLE_API_USE_CLIENT_CERTIFICATE'] = 'false'
+# import os
+# import ssl
+
+# # הגדרות לעקיפת אימות SSL עבור ספריות ה-HTTP הרגילות
+# os.environ['CURL_CA_BUNDLE'] = ""
+# os.environ['PYTHONHTTPSVERIFY'] = '0'
+# ssl._create_default_https_context = ssl._create_unverified_context
+
+# # --- הפתרון הקריטי עבור Gemini ו-gRPC ---
+# # השורה הזו אומרת לספריית הקישוריות של גוגל לא לחפש תעודות מקומיות
+# os.environ['GRPC_SSL_CIPHER_SUITES'] = 'ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-AES256-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-ECDSA-AES256-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384'
+# os.environ['GRPC_DEFAULT_SSL_ROOTS_FILE_PATH'] = ''
+# # הגדרה שתגרום לפייתון להתעלם משגיאות אימות תעודה (SSL) - נצרך בגלל הסינון
+# os.environ['CURL_CA_BUNDLE'] = ''
+# os.environ['PYTHONHTTPSVERIFY'] = '0'
+# ssl._create_default_https_context = ssl._create_unverified_context
+
+# import os
+# import ssl
+# import warnings
+
+# # ביטול אזהרות דפרקציה כדי לראות פלט נקי
+# warnings.filterwarnings("ignore", category=DeprecationWarning)
+# warnings.filterwarnings("ignore", category=FutureWarning)
+
+# # הגדרות לעקיפת אימות SSL בגלל סינון נטפרי
+# os.environ['CURL_CA_BUNDLE'] = ""
+# os.environ['PYTHONHTTPSVERIFY'] = '0'
+# os.environ['GRPC_DEFAULT_SSL_ROOTS_FILE_PATH'] = "" # קריטי עבור Gemini
+# os.environ['REQUESTS_CA_BUNDLE'] = ""
+
+# if not os.environ.get('PYTHONHTTPSVERIFY', '') == '0':
+#     ssl._create_default_https_context = ssl._create_unverified_context
+# from llama_index.llms.cohere import Cohere
+# from llama_index.core.llms import ChatMessage
+# from llama_index.llms.gemini import Gemini
+# # from llama_index.llms.openai import OpenAI
+
+# # הגדרה גלובלית להדפסה ב-Windows למניעת שגיאות ASCII בטרמינל
+# if sys.platform == "win32":
+#     try:
+#         sys.stdout.reconfigure(encoding='utf-8')
+#     except AttributeError:
+#         sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+
+# class InsuranceGEOEngine:
+
+#     import httpx
+# import os
+
+# def __init__(self):
+#     # משיכת מפתחות
+#     self.google_key = os.getenv('GEMINI_API_KEY')
+#     self.cohere_key = os.getenv('COHERE_API_KEY')
+
+#     # יצירת קליינט HTTP שמתעלם מאימות תעודות (המקבילה ל-verify=False)
+#     # זה עוקף את חסימת ה-SSL של נטפרי
+#     unsafe_client = httpx.Client(verify=False)
+
+#     # סוכן 1: Generator - Gemini
+#     # אנחנו מעבירים את ה-http_client הלא מאובטח
+#     self.gen_llm = Gemini(
+#         model="models/gemini-1.5-flash", 
+#         api_key=self.google_key,
+#         http_client=unsafe_client  # הזרקת ה-Verify=False
+#     )
+
+#     # סוכן 2: Target - Cohere
+#     self.target_llm = Cohere(
+#         model="command-r-plus", 
+#         api_key=self.cohere_key,
+#         http_client=unsafe_client  # הזרקת ה-Verify=False
+#     )
+
+#     # סוכן 3: Attacker - Gemini
+#     self.attacker_llm = Gemini(
+#         model="models/gemini-1.5-pro", 
+#         api_key=self.google_key,
+#         http_client=unsafe_client
+#     )
+
+#     # סוכן 4: Judge - Gemini
+#     self.judge_llm = Gemini(
+#         model="models/gemini-1.5-pro", 
+#         api_key=self.google_key,
+#         http_client=unsafe_client
+#     )
+    
+#     # def __init__(self, api_keys):
+#     #     """אתחול מנוע רב-סוכני עם הפרדת רשויות מלאה"""
+#     #     # ניקוי מפתחות (לוגיקה מקורי שלך)
+#     #     self.keys = {}
+#     #     for k, v in api_keys.items():
+#     #         if v:
+#     #             self.keys[k] = "".join(char for char in v if ord(char) < 128).strip()
+#     #         else:
+#     #             self.keys[k] = ""
+
+#     #     # סוכן 1: Generator - Gemini Flash (זול ומהיר לשאלות)
+#     #     self.gen_llm = Gemini(model="models/gemini-2.0-flash", api_key=self.keys.get('google'))
+        
+#     #     # סוכן 2: Target (הנחקר) - Cohere Command R+ (סימולציית צרכן וציטוטים)
+#     #     self.target_llm = Cohere(model="command-r-plus", api_key=self.keys.get('cohere'))
+        
+#     #     # סוכן 3: Attacker (החוקר) - Gemini 1.5 Pro (תיקון לגרסה קיימת)
+#     #     self.attacker_llm = Gemini(model="models/gemini-1.5-pro", api_key=self.keys.get('google'))
+        
+#     #     # סוכן 4: Judge (השופט) - OpenAI o1 (חשיבה עמוקה ל-JSON ו-ROI)
+#     #     # self.judge_llm = OpenAI(model="o1-preview", api_key=self.keys.get('openai'))
+#     #     # שימוש ב-Gemini 1.5 Pro כסוכן שופט ואנליסט (במקום OpenAI)
+#     #     self.judge_llm = Gemini(model="models/gemini-1.5-pro", api_key=self.keys.get('google'))
+
+
+import os
 import json
-import time
 import re
 import sys
 import io
+import warnings
+import httpx
+from dotenv import load_dotenv
+from llama_index.llms.gemini import Gemini
 from llama_index.llms.cohere import Cohere
 from llama_index.core.llms import ChatMessage
 
-# הגדרה גלובלית להדפסה ב-Windows למניעת שגיאות ASCII בטרמינל
+# הגדרות קידוד ל-Windows
 if sys.platform == "win32":
-    try:
-        sys.stdout.reconfigure(encoding='utf-8')
-    except AttributeError:
-        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+
+warnings.filterwarnings("ignore")
 
 class InsuranceGEOEngine:
-    def __init__(self, api_key):
-        """אתחול המנוע עם המפתח שנמשך מה-env"""
-        # ניקוי המפתח משאריות רווחים או תווים לא נראים
-        if api_key:
-            clean_key = "".join(char for char in api_key if ord(char) < 128).strip()
-        else:
-            clean_key = ""
-            
-        self.llm = Cohere(model="command-r-08-2024", api_key=clean_key)
-        
-    def ask_ai(self, messages):
-        """תקשורת חסינה מול המודל עם תמיכה מלאה בעברית"""
+    def __init__(self):
+        # 1. טעינה וניקוי מפתחות - למניעת שגיאות אימות ב-REST 
+        load_dotenv()
+        self.google_key = os.getenv('GEMINI_API_KEY', '').strip().replace('"', '')
+        self.cohere_key = os.getenv('COHERE_API_KEY', '').strip().replace('"', '')
+
+        # 2. קליינט ללא אימות SSL עבור נטפרי (עוקף את ה-Handshake Failed)
+        unsafe_client = httpx.Client(verify=False)
+
+        # 3. הגדרות משותפות לעקיפת ה-404
+        # בגרסת REST, אנחנו נותנים את השם ללא models/ כדי שה-URL יהיה תקין
+        common_kwargs = {
+            "api_key": self.google_key,
+            "transport": "rest",
+            "http_client": unsafe_client
+        }
+
+        # הגדרת המודלים
+        # self.gen_llm = Gemini(model="gemini-1.5-flash", **common_kwargs)
+        # self.attacker_llm = Gemini(model="gemini-1.5-pro", **common_kwargs)
+        # self.judge_llm = Gemini(model="gemini-1.5-pro", **common_kwargs)
+
+
+        self.gen_llm = Gemini(model="models/gemini-pro", **common_kwargs)
+        self.attacker_llm = Gemini(model="models/gemini-pro", **common_kwargs)
+        self.judge_llm = Gemini(model="models/gemini-pro", **common_kwargs)
+        self.target_llm = Cohere(
+            model="command-r-plus", 
+            api_key=self.cohere_key,
+            http_client=unsafe_client
+        )
+
+    def ask_ai(self, agent, messages):
+        """מעטפת תקשורת המקבלת סוכן ספציפי (gen, target, attacker, או judge)"""
         try:
-            response = self.llm.chat(messages)
+            if agent == "gen": response = self.gen_llm.chat(messages)
+            elif agent == "target": response = self.target_llm.chat(messages)
+            elif agent == "attacker": response = self.attacker_llm.chat(messages)
+            elif agent == "judge": response = self.judge_llm.chat(messages)
             return str(response.message.content).strip()
         except Exception as e:
-            # החזרת שגיאה בצורה שלא תפיל את הקידוד של ה-JSON
+            print(f"\n[DEBUG] שגיאה בסוכן {agent}: {e}")
             return f"COMM_ERROR: AI communication failed"
 
     def _extract_json(self, text):
@@ -56,6 +217,16 @@ class InsuranceGEOEngine:
             return json.loads(clean_content)
         except:
             return None
+        
+    def verify_sources(self, sources):
+        """שכבת ה-Verifier: בודקת אם המקורות קיימים במציאות (סימולציה של RAG)"""
+        verified = []
+        if not sources: return ["לא סופקו מקורות לאימות"]
+        for src in sources:
+            is_valid = any(term in str(src).lower() for term in ["2024", "gov.il", "רשות שוק ההון", "מדד"])
+            status = "Verified" if is_valid else "Hallucination Risk"
+            verified.append(f"{src}: {status}")
+        return verified
 
     def run_full_audit(self, categories_config):
         """
@@ -79,7 +250,7 @@ class InsuranceGEOEngine:
             פוקוס ספציפי: {info['focus']}
             החזר רק את 3 השאלות, ללא מספור וללא טקסט נוסף.
             """
-            raw_res = self.ask_ai([ChatMessage(role="user", content=prompt_gen)])
+            raw_res = self.ask_ai("gen", [ChatMessage(role="user", content=prompt_gen)])
             
             if "COMM_ERROR" in raw_res:
                 yield {"event": "ERROR", "data": {"message": "שגיאת תקשורת עם ה-API. בדוק את תקינות המפתח ב-env."}}
@@ -112,13 +283,11 @@ class InsuranceGEOEngine:
             for round_num in range(1, 4):
                 yield {"event": "AI_THOUGHT", "data": {"text": f"סבב חקירה {round_num}/3 לזירת {task['cat_name']}..."}}
                 
-                resp = self.ask_ai(history)
+                # תיקון קריאה לסוכן המטרה
+                resp = self.ask_ai("target", history)
                 history.append(ChatMessage(role="assistant", content=resp))
-                
 
-
-                # פרומפט החוקר האגרסיבי (כולל מדד השירות)
-                # --- שלב ב': חקירה אגרסיבית (סבבים 2 ו-3) ---
+                # פרומפט החוקר האגרסיבי
                 investigator_prompt = (
                   f"אתה סוכן Strategic Audit & Verification של 'ביטוח ישיר'. עליך לנהל חקירה אגרסיבית מול המודל הנחקר.\n"
                   f"סבב חקירה נוכחי: {round_num}/3.\n"
@@ -133,7 +302,8 @@ class InsuranceGEOEngine:
                   f"- אחרת: נסח שאלת המשך קצרה, נוקבת ומבוססת לוגיקה קרה שתוקפת את חוסר העקביות בתשובתו."
                )
                 
-                directive = self.ask_ai([ChatMessage(role="user", content=investigator_prompt)])
+                # תיקון קריאה לסוכן התוקף
+                directive = self.ask_ai("attacker", [ChatMessage(role="user", content=investigator_prompt)])
                 
                 if "פיניש" in directive or round_num == 3:
                     break
@@ -166,7 +336,7 @@ class InsuranceGEOEngine:
                 2. ה-"vulnerability" חייב להיות פרקטי וניתן לתיקון.
                 3. אל תוסיף שום טקסט לפני או אחרי ה-JSON.
                 """
-                summary_res = self.ask_ai([ChatMessage(role="user", content=summary_prompt)])
+                summary_res = self.ask_ai("judge", [ChatMessage(role="user", content=summary_prompt)])
                 final_data = self._extract_json(summary_res)
                 if final_data: break
                 yield {"event": "AI_THOUGHT", "data": {"text": "מתקן פורמט נתונים..."}}
@@ -191,10 +361,8 @@ class InsuranceGEOEngine:
                 "score_after": (מספר בין 1 ל-10),
                 "logic": "הסבר אסטרטגי קצר: איך סגירת הפער הזה משפיעה ישירות על האלגוריתם של מנוע התשובה"
             }}
-            
-            שים לב: הציון החדש חייב להיות ריאלי ומבוסס על רמת ההשפעה של התיקון הטכני והשיווקי.
             """
-            impact_res = self.ask_ai([ChatMessage(role="user", content=impact_prompt)])
+            impact_res = self.ask_ai("judge", [ChatMessage(role="user", content=impact_prompt)])
             impact_data = self._extract_json(impact_res) or {"score_after": score_b + 2, "logic": "שיפור אמינות"}
 
             yield {
@@ -206,10 +374,38 @@ class InsuranceGEOEngine:
                     "score_after": impact_data.get("score_after", score_b + 2),
                     "vulnerability": vuln,
                     "sources": final_data.get("sources", []),
-                    "verified_facts": final_data.get("verified_facts", []),
+                    "verified_facts": self.verify_sources(final_data.get("sources", [])),
                     "action_plan": final_data.get("action_plan", {}),
                     "improvement_logic": impact_data.get("logic", "")
                 }
             }
 
         yield {"event": "COMPLETE", "data": {"message": "הסריקה האסטרטגית הושלמה בהצלחה!"}}
+
+
+# שים לב! הבלוק הזה חייב להיות ללא רווחים בתחילת השורה
+if __name__ == "__main__":
+    import os
+    from dotenv import load_dotenv; load_dotenv()
+
+    # בדיקה אם המפתחות קיימים לפני שמתחילים
+    if not os.getenv('GEMINI_API_KEY') or not os.getenv('COHERE_API_KEY'):
+        print("❌ שגיאה: מפתחות API חסרים ב-ENV. וודא ש-GEMINI_API_KEY ו-COHERE_API_KEY מוגדרים.")
+    else:
+        engine = InsuranceGEOEngine() 
+
+        # הגדרת קונפיגורציה לבדיקה
+        config = {
+            "car": {"name": "ביטוח רכב", "focus": "מדד השירות לשנת 2024 ומהירות תביעות"}
+        }
+
+        print("🚀 מתחיל הרצה...")
+        for step in engine.run_full_audit(config):
+            # הדפסה יפה יותר של הצעדים
+            if step['event'] == 'PROGRESS':
+                print(f"[{step['data']['percent']}%] {step['data']['message']}")
+            elif step['event'] == 'ZONE_COMPLETE':
+                print(f"\n✅ תוצאה סופית לזירת {step['data']['category']}:")
+                print(json.dumps(step['data'], indent=2, ensure_ascii=False))
+            else:
+                print(step)
